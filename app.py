@@ -225,9 +225,10 @@ with tab3:
                 safety_score = route_analyzer.calculate_route_safety_score(route_accidents)
                 route_stats = route_analyzer.get_route_statistics(route_accidents)
                 
-                # Get weather risk and compute final fusion risk
+                # Get weather and traffic risks for triple-fusion calculation
                 weather_risk = route_analyzer.get_route_weather_risk(start_coords, end_coords)
-                final_risk = route_analyzer.compute_final_route_risk(safety_score, weather_risk)
+                traffic_risk = route_analyzer.get_route_traffic_risk(start_coords, end_coords)
+                final_risk = route_analyzer.compute_final_route_risk(safety_score, weather_risk, traffic_risk)
                 category = route_analyzer.classify_route(final_risk)
                 
                 # Create fusion-based route map
@@ -240,6 +241,7 @@ with tab3:
                 st.session_state['route_map'] = route_map
                 st.session_state['route_distance'] = distance_miles
                 st.session_state['weather_risk'] = weather_risk
+                st.session_state['traffic_risk'] = traffic_risk
                 st.session_state['final_risk'] = final_risk
                 st.session_state['route_category'] = category
                 st.session_state['route_analyzed'] = True
@@ -254,11 +256,12 @@ with tab3:
         route_map = st.session_state['route_map']
         distance_miles = st.session_state['route_distance']
         weather_risk = st.session_state['weather_risk']
+        traffic_risk = st.session_state['traffic_risk']
         final_risk = st.session_state['final_risk']
         category = st.session_state['route_category']
         
-        # Key Metrics
-        col1, col2, col3, col4, col5 = st.columns(5)
+        # Key Metrics - Triple-Fusion System
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
         with col1:
             st.metric("Route Distance", f"{distance_miles:.1f} mi")
         with col2:
@@ -266,8 +269,10 @@ with tab3:
         with col3:
             st.metric("Weather Risk", f"{weather_risk:.2f}")
         with col4:
-            st.metric("Final Risk", f"{final_risk:.2f}")
+            st.metric("Traffic Risk", f"{traffic_risk:.2f}")
         with col5:
+            st.metric("Final Risk", f"{final_risk:.2f}")
+        with col6:
             st.metric("Route Category", category)
         
         # Fusion-Based Risk Assessment Box

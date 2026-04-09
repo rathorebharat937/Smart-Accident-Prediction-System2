@@ -4,6 +4,16 @@ from geopy.distance import geodesic
 import folium
 from scipy.spatial import cKDTree
 from .weather_risk import get_weather, compute_weather_risk
+from .traffic_risk import get_traffic, compute_traffic_risk
+
+# Performance optimization: cache traffic data to avoid repeated API calls
+traffic_cache = {}
+
+def get_cached_traffic(lat, lon):
+    key = (round(lat, 2), round(lon, 2))
+    if key not in traffic_cache:
+        traffic_cache[key] = compute_traffic_risk(get_traffic(lat, lon))
+    return traffic_cache[key]
 
 def find_accidents_on_route(df, start_coords, end_coords, radius_miles=5):
     """
@@ -355,12 +365,25 @@ def get_route_weather_risk(start_coords, end_coords):
 
     return risk
 
-def compute_final_route_risk(safety_score, weather_risk):
+def get_route_traffic_risk(start_coords, end_coords):
+    mid_lat = (start_coords[0] + end_coords[0]) / 2
+    mid_lon = (start_coords[1] + end_coords[1]) / 2
+
+    traffic = get_traffic(mid_lat, mid_lon)
+    risk = compute_traffic_risk(traffic)
+
+    print("Traffic:", traffic)
+    print("Traffic Risk:", risk)
+
+    return risk
+
+def compute_final_route_risk(safety_score, weather_risk, traffic_risk):
     accident_risk = 1 - (safety_score / 100)
     
     final_risk = (
-        0.65 * accident_risk +
-        0.35 * weather_risk
+        0.5 * accident_risk +
+        0.25 * weather_risk +
+        0.25 * traffic_risk
     )
     
     return round(final_risk, 2)
@@ -384,7 +407,13 @@ def get_point_risk(lat, lon, df):
     weather = get_weather(lat, lon)
     weather_score = compute_weather_risk(weather)
     
-    final = (0.7 * accident_score + 0.3 * weather_score)
+    traffic_score = get_cached_traffic(lat, lon)
+    
+    final = (
+        0.5 * accident_score +
+        0.25 * weather_score +
+        0.25 * traffic_score
+    )
     
     return final
 
