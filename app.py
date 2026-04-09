@@ -287,13 +287,42 @@ with tab3:
         st.subheader("🗺️ Interactive Route Map")
         st_folium(route_map, width=1400, height=600, key="route_map_display", returned_objects=[])
         
-        # Detailed Accident Information
+        # Show fusion-based route summary
         if not route_accidents.empty:
-            with st.expander("📋 View Detailed Accident Data"):
-                display_cols = ['City', 'Severity', 'Weather_Condition', 'Start_Time', 
-                               'Temperature(F)', 'Visibility(mi)']
-                available_cols = [col for col in display_cols if col in route_accidents.columns]
-                st.dataframe(route_accidents[available_cols].head(50), use_container_width=True)
+            st.subheader("Live Route Risk Summary")
+            
+            # Build fusion-based summary table
+            rows = []
+            
+            # Get weather data for route
+            mid_lat = (start_coords[0] + end_coords[0]) / 2
+            mid_lon = (start_coords[1] + end_coords[1]) / 2
+            weather = route_analyzer.get_weather(mid_lat, mid_lon)
+            
+            rows.append(route_analyzer.build_summary_row(
+                city="Route",
+                risk=final_risk,
+                weather=weather,
+                traffic_score=traffic_risk,
+                accident_count=len(route_accidents)
+            ))
+            
+            df_summary = pd.DataFrame(rows)
+            
+            # Sort by risk (highest first)
+            df_summary = df_summary.sort_values(by="Risk", ascending=False)
+            
+            # Add color coding for risk levels
+            def color_risk(val):
+                if val < 0.3:
+                    return "background-color: #1b5e20; color: white"
+                elif val < 0.6:
+                    return "background-color: #ff8f00; color: black"
+                else:
+                    return "background-color: #b71c1c; color: white"
+            
+            styled_df = df_summary.style.applymap(color_risk, subset=["Risk"])
+            st.dataframe(styled_df, use_container_width=True)
 
 # TAB 4: ML Prediction
 # ============================================================

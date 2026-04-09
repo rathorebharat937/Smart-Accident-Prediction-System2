@@ -3,6 +3,7 @@ import numpy as np
 from geopy.distance import geodesic
 import folium
 from scipy.spatial import cKDTree
+from datetime import datetime
 from .weather_risk import get_weather, compute_weather_risk
 from .traffic_risk import get_traffic, compute_traffic_risk
 
@@ -213,7 +214,17 @@ def create_route_map(df, start_coords, end_coords, route_accidents):
             color=color,
             fill=True,
             fill_opacity=0.7,
-            popup=f"Risk: {round(risk,2)}"
+            popup=f"""
+Risk: {round(risk,2)} ({'HIGH RISK' if risk >= 0.6 else 'MODERATE' if risk >= 0.3 else 'SAFE'})
+
+{datetime.now().strftime('Time: %H:%M:%S')}
+
+Weather: {get_weather(lat, lon)['condition']}
+Traffic: {'Heavy' if get_cached_traffic(lat, lon) > 0.6 else 'Moderate' if get_cached_traffic(lat, lon) > 0.3 else 'Smooth'}
+Accidents: {len(df[(abs(df['Start_Lat'] - lat) < 0.02) & (abs(df['Start_Lng'] - lon) < 0.02)])} ({'High' if len(df[(abs(df['Start_Lat'] - lat) < 0.02) & (abs(df['Start_Lng'] - lon) < 0.02)]) > 10 else 'Medium' if len(df[(abs(df['Start_Lat'] - lat) < 0.02) & (abs(df['Start_Lng'] - lon) < 0.02)]) > 5 else 'Low'})
+
+Reason: {' + '.join(['traffic'] if get_cached_traffic(lat, lon) > 0.6 else [] + ['weather'] if get_weather(lat, lon)['condition'].lower() != 'clear' else [] + ['hotspot'] if len(df[(abs(df['Start_Lat'] - lat) < 0.02) & (abs(df['Start_Lng'] - lon) < 0.02)]) > 10 else [] or ['safe'])}
+"""
         ).add_to(m)
     
     # Add accidents with color coding by severity
@@ -447,3 +458,44 @@ def apply_fusion_to_segments(segments, df):
     segments['category'] = segments['fusion_risk'].apply(classify_cluster)
     
     return segments
+
+def build_summary_row(city, risk, weather, traffic_score, accident_count):
+    """Build fusion-based summary row for intelligent display"""
+    time = datetime.now().strftime("%H:%M:%S")
+    
+    # Traffic label
+    if traffic_score < 0.3:
+        traffic = "Smooth"
+    elif traffic_score < 0.6:
+        traffic = "Moderate"
+    else:
+        traffic = "Heavy"
+    
+    # Accident level
+    if accident_count < 5:
+        accident_level = "Low"
+    elif accident_count < 15:
+        accident_level = "Medium"
+    else:
+        accident_level = "High"
+    
+    # Reason
+    reasons = []
+    if traffic_score > 0.6:
+        reasons.append("traffic")
+    if weather["condition"].lower() != "clear":
+        reasons.append("weather")
+    if accident_count > 10:
+        reasons.append("hotspot")
+    if not reasons:
+        reasons = ["safe"]
+    
+    return {
+        "City": city,
+        "Risk": round(risk, 2),
+        "Time": time,
+        "Weather (Live)": weather["condition"],
+        "Traffic (Live)": traffic,
+        "Accidents (Dataset)": f"{accident_count} ({accident_level})",
+        "Reason": " + ".join(reasons)
+    }
