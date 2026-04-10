@@ -100,13 +100,8 @@ traffic-accident-hotspot/
 
 ### Steps
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/sneh-a-15/traffic-accident-hotspot.git
-cd traffic-accident-hotspot
-```
 
-2. **Create a virtual environment**
+1. **Create a virtual environment**
 ```bash
 # Windows
 python -m venv venv
@@ -117,16 +112,16 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-3. **Install dependencies**
+2. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Place the dataset**
+3. **Place the dataset**
 - Download [US Accidents Dataset (2016–2023)](https://www.kaggle.com/datasets/sobhanmoosavi/us-accidents)
 - Put it in `data/US_Accidents_March23.csv`
 
-5. **Run the Streamlit application**
+4. **Run the Streamlit application**
 ```bash
 streamlit run app.py
 ```
