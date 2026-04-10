@@ -34,7 +34,7 @@ def detect_spatial_hotspots(df, grid_size=0.05, density_threshold=5):
         df[df["Hotspot"]]
         .groupby(["Grid_ID", "Lat_bin", "Lng_bin"])
         .agg({"Start_Lat": "mean", "Start_Lng": "mean", "Count": "first"})
-        .reset_index(drop=True)
+        .reset_index()
     )
 
     return hotspots, df
@@ -53,18 +53,19 @@ def analyze_temporal_evolution(df, time_col="Start_Time", grid_size=0.05, densit
     df[time_col] = pd.to_datetime(df[time_col], errors="coerce")
     df = df.dropna(subset=[time_col])
 
-    # Create time period & spatial bins
-    df["Period"] = df[time_col].dt.to_period(time_unit)
+    # Create spatial bins only (no Period column)
     df["Lat_bin"] = (df["Start_Lat"] / grid_size).round(0)
     df["Lng_bin"] = (df["Start_Lng"] / grid_size).round(0)
     df["Grid_ID"] = df["Lat_bin"].astype(str) + "_" + df["Lng_bin"].astype(str)
 
-    periods = sorted(df["Period"].unique())
+    # Create time periods for analysis but don't include in output
+    df["Temp_Period"] = df[time_col].dt.to_period(time_unit)
+    periods = sorted(df["Temp_Period"].unique())
     evolution_records = []
     prev_hotspots = set()
 
     for p in periods:
-        subset = df[df["Period"] == p]
+        subset = df[df["Temp_Period"] == p]
         grid_counts = subset.groupby("Grid_ID").size().reset_index(name="Count")
         curr_hotspots = set(grid_counts[grid_counts["Count"] >= density_threshold]["Grid_ID"])
 
@@ -73,17 +74,25 @@ def analyze_temporal_evolution(df, time_col="Start_Time", grid_size=0.05, densit
         persistent = curr_hotspots & prev_hotspots
 
         for g in curr_hotspots:
-            evolution_records.append({"Period": str(p), "Grid_ID": g, "Status": "Persistent" if g in persistent else "New"})
+            evolution_records.append({"Grid_ID": g, "Status": "Persistent" if g in persistent else "New"})
         for g in disappeared:
-            evolution_records.append({"Period": str(p), "Grid_ID": g, "Status": "Disappeared"})
+            evolution_records.append({"Grid_ID": g, "Status": "Disappeared"})
 
         prev_hotspots = curr_hotspots
 
     evolution_df = pd.DataFrame(evolution_records)
 
-    # Attach average lat/lng for each grid
+    # Attach average lat/lng and city name for each grid
     if not evolution_df.empty:
-        coord_map = df.groupby("Grid_ID")[["Start_Lat", "Start_Lng"]].mean().reset_index()
+        coord_map = df.groupby("Grid_ID")[["Start_Lat", "Start_Lng", "City"]].agg({
+            "Start_Lat": "mean", 
+            "Start_Lng": "mean", 
+            "City": "first"
+        }).reset_index()
         evolution_df = evolution_df.merge(coord_map, on="Grid_ID", how="left")
+        
+        # Rename Grid_ID to City Name and drop Grid_ID
+        evolution_df = evolution_df.rename(columns={"City": "City Name"})
+        evolution_df = evolution_df.drop("Grid_ID", axis=1)
 
     return evolution_df

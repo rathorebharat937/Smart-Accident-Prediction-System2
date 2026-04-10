@@ -142,13 +142,12 @@ filtered_df = apply_filters(df, selected_city, selected_severity)
 st.sidebar.metric("Filtered Records", f"{len(filtered_df):,}")
 
 # Main tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Dashboard", 
     "🗺️ Interactive Maps", 
     "🛣️ Route Analysis", 
     "🤖 ML Prediction", 
-    "🎯 Hotspot Detection",
-    "📈 Temporal Analysis"
+    "🎯 Hotspot Detection"
 ])
 
 # TAB 1: Dashboard
@@ -525,10 +524,41 @@ with tab5:
                     count = row["Count"]
                     color = "red" if count > 30 else "orange" if count > 15 else "yellow"
                     popup_id = row.get("Grid_ID", "Unknown")
+                    
+                    # Get detailed information for this hotspot grid
+                    grid_id = row.get("Grid_ID", "")
+                    grid_data = spatial_df[spatial_df["Grid_ID"] == grid_id]
+                    
+                    if not grid_data.empty:
+                        # Calculate statistics for this grid
+                        avg_severity = grid_data["Severity"].mean()
+                        most_common_severity = grid_data["Severity"].mode().iloc[0] if not grid_data["Severity"].mode().empty else "N/A"
+                        most_common_city = grid_data["City"].mode().iloc[0] if not grid_data["City"].mode().empty else "Unknown"
+                        most_common_weather = grid_data["Weather_Condition"].mode().iloc[0] if not grid_data["Weather_Condition"].mode().empty else "Unknown"
+                        avg_visibility = grid_data["Visibility(mi)"].mean() if "Visibility(mi)" in grid_data.columns else "N/A"
+                        avg_temp_f = grid_data["Temperature(F)"].mean() if "Temperature(F)" in grid_data.columns else None
+                        avg_temperature = (avg_temp_f - 32) * 5/9 if avg_temp_f is not None else "N/A"
+                        
+                        # Create detailed popup
+                        popup_text = f"""
+                        <div style='font-family: Arial; font-size: 12px;'>
+                            <b>Location:</b> {most_common_city}<br>
+                            <b>Total Crashes:</b> {count}<br>
+                            <b>Avg Severity:</b> {avg_severity:.2f}<br>
+                            <b>Most Common Severity:</b> {most_common_severity}<br>
+                            <b>Common Weather:</b> {most_common_weather}<br>
+                            <b>Avg Temperature:</b> {avg_temperature:.1f}°C<br>
+                            <b>Avg Visibility:</b> {avg_visibility:.1f} mi<br>
+                            <small>Grid ID: {popup_id}</small>
+                        </div>
+                        """
+                    else:
+                        popup_text = f"Grid {popup_id}<br>Crashes: {count}"
+                    
                     folium.Circle(
                         location=[row["Start_Lat"], row["Start_Lng"]],
                         radius=count * 80,
-                        popup=f"Grid {popup_id}<br>Crashes: {count}",
+                        popup=folium.Popup(popup_text, max_width=300),
                         color=color, fill=True, fill_color=color, fill_opacity=0.5
                     ).add_to(m)
                 
@@ -558,116 +588,13 @@ with tab5:
     else:
         st.warning("⚠️ No hotspots detected yet. Click 'Detect Hotspots' above.")
 
-# TAB 6: Temporal Hotspot Evolution - FIXED TO PREVENT RELOADING
-with tab6:
-    st.header("🕓 Spatiotemporal Hotspot Evolution")
-    st.info("📅 Track hotspot emergence, persistence, and disappearance across time periods.")
-
-    grid_size = st.slider("Grid Size", 0.01, 0.1, 0.05, 0.01, key="grid_size_tab6")
-    density_threshold = st.slider("Density Threshold", 3, 20, 5, 1, key="density_threshold_tab6")
-    time_unit = st.selectbox("Group By", ["Monthly", "Yearly"], key="time_unit_tab6")
-
-    @st.cache_data(show_spinner=False)
-    def compute_hotspot_evolution(df, grid_size, density_threshold, time_unit):
-        return hotspot_detector.analyze_temporal_evolution(
-            df,
-            grid_size=grid_size,
-            density_threshold=density_threshold,
-            time_unit="M" if time_unit == "Monthly" else "Y"
-        )
-
-    if st.button("🔍 Analyze Evolution", key="analyze_evolution_btn"):
-        with st.spinner("Evaluating hotspot transitions over time..."):
-            evolution_df = compute_hotspot_evolution(filtered_df, grid_size, density_threshold, time_unit)
-
-            if not evolution_df.empty:
-                st.session_state["evolution_df"] = evolution_df
-                
-                # Generate map once and store it
-                center_lat = filtered_df["Start_Lat"].mean()
-                center_lng = filtered_df["Start_Lng"].mean()
-
-                m = folium.Map(location=[center_lat, center_lng], zoom_start=6, tiles="CartoDB positron")
-                colors = {"New": "blue", "Persistent": "green", "Disappeared": "red"}
-
-                for _, row in evolution_df.iterrows():
-                    lat, lng = row.get("Start_Lat"), row.get("Start_Lng")
-                    if pd.notnull(lat) and pd.notnull(lng):
-                        folium.CircleMarker(
-                            location=[lat, lng],
-                            radius=5,
-                            color=colors.get(row["Status"], "gray"),
-                            fill=True,
-                            fill_color=colors.get(row["Status"], "gray"),
-                            fill_opacity=0.7,
-                            popup=f"<b>Grid:</b> {row.get('Grid_ID','N/A')}<br>"
-                                  f"<b>Status:</b> {row['Status']}<br>"
-                                  f"<b>Period:</b> {row.get('Period','N/A')}"
-                        ).add_to(m)
-                
-                st.session_state["temporal_map"] = m
-                st.success("✅ Temporal hotspot evolution analysis complete.")
-            else:
-                st.warning("⚠️ No hotspots identified in this period.")
-
-    evolution_df = st.session_state.get("evolution_df", pd.DataFrame())
-
-    if not evolution_df.empty:
-        st.write("### Preview of Results")
-        st.dataframe(evolution_df.head(10))
-
-        st.subheader("📈 Hotspot Change Summary")
-
-        status_counts = evolution_df["Status"].value_counts()
-        total = int(status_counts.sum())
-        emerging = int(status_counts.get("New", 0))
-        persistent = int(status_counts.get("Persistent", 0))
-        disappeared = int(status_counts.get("Disappeared", 0))
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🟦 New Hotspots", emerging, f"{(emerging / total * 100):.1f}%")
-        c2.metric("🟩 Persistent", persistent, f"{(persistent / total * 100):.1f}%")
-        c3.metric("🟥 Disappeared", disappeared, f"{(disappeared / total * 100):.1f}%")
-
-        st.bar_chart(status_counts)
-
-        st.markdown(f"""
-        - **Total hotspots analyzed:** {total}  
-        - **New:** {emerging} ({(emerging / total * 100):.1f}%)  
-        - **Persistent:** {persistent} ({(persistent / total * 100):.1f}%)  
-        - **Disappeared:** {disappeared} ({(disappeared / total * 100):.1f}%)  
-        """)
-
-        if emerging > disappeared:
-            st.success("📈 More new hotspots are emerging — indicates increasing risk.")
-        elif disappeared > emerging:
-            st.info("📉 More hotspots have disappeared — signs of safety improvement.")
-        else:
-            st.warning("⚖️ Stable hotspot trend — similar distribution over time.")
-
-        st.subheader("🗺️ Hotspot Evolution Map")
-        
-        # Display stored map
-        if "temporal_map" in st.session_state:
-            st_folium(st.session_state["temporal_map"], width=1200, height=600, 
-                     key="temporal_map_display", returned_objects=[])
-
-        st.markdown("### 🧭 Interpretation Guide")
-        st.write("""
-        - **🟦 Blue:** Newly emerging crash zones (recently risky areas).  
-        - **🟩 Green:** Stable long-term hotspots (require sustained monitoring).  
-        - **🟥 Red:** Areas where risk has reduced (positive change).  
-        """)
-
-    else:
-        st.warning("⚠️ No temporal hotspot evolution detected yet. Run the analysis first.")
 
 # Footer
 st.markdown("---")
 st.markdown(f"""
 <div style='text-align: center; color: #666;'>
     <p><b>Enhanced Traffic Accident Analysis System</b> | Processing {len(df):,} accident records</p>
-    <p>Features: Hotspot Detection • Route Safety Analysis • ML Prediction • Temporal Trends</p>
+    <p>Features: Hotspot Detection • Route Safety Analysis • ML Prediction • Interactive Maps</p>
     <p>Data Source: US Accidents Dataset | Powered by Streamlit, Scikit-learn & Folium</p>
     <p style='font-size: 0.8em;'>{'🎯 Big Data Mode Active' if data_limit is None else f'Sample Mode: {data_limit:,} records'}</p>
 </div>
