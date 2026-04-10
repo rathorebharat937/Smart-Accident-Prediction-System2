@@ -41,7 +41,7 @@ def find_accidents_on_route(df, start_coords, end_coords, radius_miles=5):
         return pd.DataFrame()
     
     # Use vectorized operations for distance calculations
-    total_route_distance = geodesic(start_coords, end_coords).miles
+    total_route_distance = geodesic(start_coords, end_coords).km
     
     # Calculate distances for all candidates at once
     accidents_on_route = []
@@ -53,7 +53,7 @@ def find_accidents_on_route(df, start_coords, end_coords, radius_miles=5):
         tree = cKDTree(coords)
         
         # Sample points along the route
-        num_points = int(total_route_distance / 5) + 1  # Every 5 miles
+        num_points = int(total_route_distance / 8) + 1  # Every 8 km (≈5 miles)
         route_points = []
         for i in range(num_points + 1):
             t = i / num_points
@@ -77,11 +77,11 @@ def find_accidents_on_route(df, start_coords, end_coords, radius_miles=5):
         for idx, row in candidates.iterrows():
             accident_coords = (row['Start_Lat'], row['Start_Lng'])
             
-            dist_to_start = geodesic(start_coords, accident_coords).miles
-            dist_to_end = geodesic(end_coords, accident_coords).miles
+            dist_to_start = geodesic(start_coords, accident_coords).km
+            dist_to_end = geodesic(end_coords, accident_coords).km
             
             # Check if point is near the route
-            if dist_to_start + dist_to_end <= total_route_distance + radius_miles:
+            if dist_to_start + dist_to_end <= total_route_distance + (radius_miles * 1.60934):  # Convert miles to km
                 accidents_on_route.append(row)
         
         accidents_on_route = pd.DataFrame(accidents_on_route) if accidents_on_route else pd.DataFrame()
@@ -149,12 +149,12 @@ def create_route_map(df, start_coords, end_coords, route_accidents):
     center_lng = (start_coords[1] + end_coords[1]) / 2
     
     # Calculate zoom level based on distance
-    distance = geodesic(start_coords, end_coords).miles
-    if distance < 50:
+    distance = geodesic(start_coords, end_coords).km
+    if distance < 80:  # ~50 miles
         zoom = 10
-    elif distance < 100:
+    elif distance < 160:  # ~100 miles
         zoom = 9
-    elif distance < 200:
+    elif distance < 320:  # ~200 miles
         zoom = 8
     else:
         zoom = 7
@@ -185,7 +185,7 @@ def create_route_map(df, start_coords, end_coords, route_accidents):
         color='#2E86AB',
         weight=4,
         opacity=0.8,
-        popup=f"<b>Route</b><br>Distance: {geodesic(start_coords, end_coords).miles:.1f} miles"
+        popup=f"<b>Route</b><br>Distance: {geodesic(start_coords, end_coords).km:.1f} km"
     ).add_to(m)
     
     # Generate route coordinates for point-level risk assessment
@@ -299,11 +299,11 @@ def compare_routes(df, routes):
     for start_coords, end_coords, route_name in routes:
         route_accidents = find_accidents_on_route(df, start_coords, end_coords)
         safety_score = calculate_route_safety_score(route_accidents)
-        distance = geodesic(start_coords, end_coords).miles
+        distance = geodesic(start_coords, end_coords).km
         
         results.append({
             'Route': route_name,
-            'Distance_Miles': round(distance, 1),
+            'Distance_KM': round(distance, 1),
             'Accident_Count': len(route_accidents),
             'Safety_Score': safety_score,
             'Avg_Severity': round(route_accidents['Severity'].mean(), 2) if not route_accidents.empty else 0,
@@ -335,8 +335,8 @@ def get_dangerous_segments(df, start_coords, end_coords, segment_length_miles=10
     --------
     List of segments with accident counts
     """
-    total_distance = geodesic(start_coords, end_coords).miles
-    num_segments = max(int(total_distance / segment_length_miles), 1)
+    total_distance = geodesic(start_coords, end_coords).km
+    num_segments = max(int(total_distance / (segment_length_miles * 1.60934)), 1)  # Convert miles to km
     
     segments = []
     for i in range(num_segments):

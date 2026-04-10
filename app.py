@@ -12,65 +12,77 @@ DATA_PATH = "data/US_Accidents_March23.csv"
 
 st.set_page_config(page_title="Traffic Accident Hotspot", page_icon="🚦", layout="wide")
 
-# Custom CSS
+# Custom CSS - Premium Dark Theme
 st.markdown("""
 <style>
-    .main-title {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        color: #1f77b4;
-        margin-bottom: 0.5rem;
-    }
-    .subtitle {
-        text-align: center;
-        color: #666;
-        margin-bottom: 2rem;
-    }
-    .metric-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-    }
-    .recommendation-box {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 1rem;
-        margin: 1rem 0;
-        border-radius: 5px;
-    }
-    .risk-high {
-        background-color: #f8d7da;
-        border-left: 4px solid #dc3545;
-        padding: 1rem;
-        margin: 1rem 0;
-        border-radius: 5px;
-    }
-    .risk-low {
-        background-color: #d4edda;
-        border-left: 4px solid #28a745;
-        padding: 1rem;
-        margin: 1rem 0;
-        border-radius: 5px;
-    }
+body {
+    background-color: #0e1117;
+    color: white;
+}
+
+.block-container {
+    padding-top: 1rem;
+}
+
+h1, h2, h3 {
+    color: white;
+}
+
+.card {
+    background: linear-gradient(135deg, #1f2937, #111827);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0px 4px 20px rgba(0,0,0,0.5);
+    margin-bottom: 15px;
+}
+
+.metric-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+    transition: transform 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 8px 25px rgba(0,0,0,0.3);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="main-title">🚦 Traffic Accident Hotspot Analysis</p>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Big Data Analytics & Prediction System with AI-Powered Insights</p>', unsafe_allow_html=True)
+# Hero Section - Premium Branding
+st.markdown("""
+<h1 style='text-align:center; font-size:3rem; color:white; margin-bottom:0.5rem;'>
+🚦 Smart Traffic Risk Intelligence System
+</h1>
+<p style='text-align:center; color:gray; font-size:1.2rem;'>
+AI-powered route safety using real-time weather + traffic + historical data
+</p>
+""", unsafe_allow_html=True)
 
 # Initialize session state for data loading
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
     st.session_state.df = None
 
-# Sidebar
-st.sidebar.header("⚙️ Configuration")
+# Modern Sidebar Design
+st.sidebar.markdown("""
+<div style="background: linear-gradient(135deg, #1f2937, #111827); 
+            padding:15px; border-radius:10px; margin-bottom:20px;">
+<h3 style="color:white; margin:0;">⚙️ Configuration</h3>
+</div>
+""", unsafe_allow_html=True)
 
 # Data loading configuration
-st.sidebar.subheader("📊 Data Loading")
+st.sidebar.markdown("### 📊 Data Loading")
 use_full_dataset = st.sidebar.checkbox("Use Full Dataset (Big Data Mode)", value=False, 
                                         help="Load entire dataset for true big data analysis")
 
@@ -212,7 +224,7 @@ with tab3:
     
     search_radius = st.slider("Search Radius (miles)", 5, 50, 10, key="route_radius")
     
-    if st.button("🔍 Analyze Route", type="primary", key="analyze_route_btn"):
+    if st.button("� Analyze Route", type="primary", use_container_width=True, key="analyze_route_btn"):
         if start_coords and end_coords:
             with st.spinner("Analyzing route with fusion-based intelligence..."):
                 from geopy.distance import geodesic
@@ -221,7 +233,7 @@ with tab3:
                     df, start_coords, end_coords, radius_miles=search_radius
                 )
                 
-                distance_miles = geodesic(start_coords, end_coords).miles
+                distance_km = geodesic(start_coords, end_coords).km
                 safety_score = route_analyzer.calculate_route_safety_score(route_accidents)
                 route_stats = route_analyzer.get_route_statistics(route_accidents)
                 
@@ -239,7 +251,7 @@ with tab3:
                 st.session_state['route_safety_score'] = safety_score
                 st.session_state['route_stats'] = route_stats
                 st.session_state['route_map'] = route_map
-                st.session_state['route_distance'] = distance_miles
+                st.session_state['route_distance'] = distance_km
                 st.session_state['weather_risk'] = weather_risk
                 st.session_state['traffic_risk'] = traffic_risk
                 st.session_state['final_risk'] = final_risk
@@ -254,41 +266,96 @@ with tab3:
         safety_score = st.session_state['route_safety_score']
         route_stats = st.session_state['route_stats']
         route_map = st.session_state['route_map']
-        distance_miles = st.session_state['route_distance']
+        distance_km = st.session_state['route_distance']
         weather_risk = st.session_state['weather_risk']
         traffic_risk = st.session_state['traffic_risk']
         final_risk = st.session_state['final_risk']
         category = st.session_state['route_category']
         
-        # Key Metrics - Triple-Fusion System
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        # Premium Metric Cards - Triple-Fusion System
+        col1, col2, col3, col4 = st.columns(4)
+        
         with col1:
-            st.metric("Route Distance", f"{distance_miles:.1f} mi")
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div style='font-size:1.5rem;'>🚗</div>
+                <div style='font-size:2rem; font-weight:bold;'>{route_stats['total_accidents']}</div>
+                <div style='font-size:0.9rem; opacity:0.8;'>Accidents on Route</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         with col2:
-            st.metric("Accidents on Route", route_stats['total_accidents'])
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div style='font-size:1.5rem;'>🌤</div>
+                <div style='font-size:2rem; font-weight:bold;'>{weather_risk:.2f}</div>
+                <div style='font-size:0.9rem; opacity:0.8;'>Weather Risk</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         with col3:
-            st.metric("Weather Risk", f"{weather_risk:.2f}")
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div style='font-size:1.5rem;'>🚦</div>
+                <div style='font-size:2rem; font-weight:bold;'>{traffic_risk:.2f}</div>
+                <div style='font-size:0.9rem; opacity:0.8;'>Traffic Risk</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         with col4:
-            st.metric("Traffic Risk", f"{traffic_risk:.2f}")
+            st.markdown(f"""
+            <div class='metric-card'>
+                <div style='font-size:1.5rem;'>⚠</div>
+                <div style='font-size:2rem; font-weight:bold;'>{final_risk:.2f}</div>
+                <div style='font-size:0.9rem; opacity:0.8;'>Final Risk</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Secondary Metrics Row
+        col5, col6 = st.columns(2)
         with col5:
-            st.metric("Final Risk", f"{final_risk:.2f}")
+            st.metric("Route Distance", f"{distance_km:.1f} km")
         with col6:
             st.metric("Route Category", category)
         
-        # Fusion-Based Risk Assessment Box
-        if category == "HIGH RISK":
-            st.error("🚨 HIGH RISK ROUTE - Dangerous conditions detected")
-        elif category == "MODERATE":
-            st.warning("⚠️ MODERATE RISK ROUTE")
-        else:
-            st.success("✅ SAFE ROUTE")
+        # Animated Alert Banner System
+        def show_risk_banner(category):
+            if category == "HIGH RISK":
+                color = "#b71c1c"
+                text = "🚨 HIGH RISK ROUTE"
+                subtext = "Dangerous conditions detected"
+            elif category == "MODERATE":
+                color = "#ff8f00"
+                text = "⚠️ MODERATE RISK ROUTE"
+                subtext = "Use caution while traveling"
+            else:
+                color = "#1b5e20"
+                text = "✅ SAFE ROUTE"
+                subtext = "Conditions are favorable"
+            
+            return f"""
+            <div style="background:{color}; padding:20px; border-radius:10px; text-align:center; 
+                        margin:20px 0; font-weight:bold; color:white; 
+                        box-shadow:0px 4px 15px rgba(0,0,0,0.3); 
+                        animation:fadeIn 0.5s ease-in;">
+                <div style="font-size:1.5rem;">{text}</div>
+                <div style="font-size:0.9rem; opacity:0.9; margin-top:5px;">{subtext}</div>
+            </div>
+            """
         
-        # Route Map - FIXED: Use returned_objects=[] to prevent reloading
+        st.markdown(show_risk_banner(category), unsafe_allow_html=True)
+        
+        # Route Map - Premium Card Container
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("🗺️ Interactive Route Map")
-        st_folium(route_map, width=1400, height=600, key="route_map_display", returned_objects=[])
+        st_folium(route_map, width=1000, height=500, key="route_map_display", returned_objects=[])
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        # Show fusion-based route summary
+        # Show fusion-based route summary with premium layout
         if not route_accidents.empty:
+            st.markdown("<br>", unsafe_allow_html=True)
             st.subheader("Live Route Risk Summary")
             
             # Build fusion-based summary table
@@ -370,13 +437,13 @@ with tab4:
 
             col_a, col_b = st.columns(2)
             with col_a:
-                temp = st.number_input("Temperature (°F)", -20, 120, 70)
+                temp = st.number_input("Temperature (°C)", -30, 50, 20)
                 humidity = st.slider("Humidity (%)", 0, 100, 50)
                 pressure = st.number_input("Pressure (in)", 28.0, 31.0, 29.92, 0.01)
                 visibility = st.number_input("Visibility (mi)", 0.0, 10.0, 10.0, 0.1)
 
             with col_b:
-                wind_speed = st.number_input("Wind Speed (mph)", 0.0, 100.0, 5.0, 0.5)
+                wind_speed = st.number_input("Wind Speed (km/h)", 0.0, 160.0, 8.0, 0.5)
                 precipitation = st.number_input("Precipitation (in)", 0.0, 5.0, 0.0, 0.01)
                 hour = st.slider("Hour of Day", 0, 23, 12)
                 weather_conditions = ['Clear', 'Cloudy', 'Rain', 'Heavy Rain', 'Snow', 'Fog', 
@@ -384,15 +451,19 @@ with tab4:
                 weather = st.selectbox("Weather Condition", weather_conditions)
 
             if st.button("🔍 Predict Risk", type="primary", key="predict_rf_btn"):
+                # Convert Celsius to Fahrenheit and km/h to mph for the model (model trained on Fahrenheit and mph)
+                temp_fahrenheit = (temp * 9/5) + 32
+                wind_speed_mph = wind_speed * 0.621371  # Convert km/h to mph
+                
                 conditions = {
-                    "Temperature(F)": temp,
+                    "Temperature(F)": temp_fahrenheit,
                     "Humidity(%)": humidity,
                     "Pressure(in)": pressure,
                     "Visibility(mi)": visibility,
-                    "Wind_Speed(mph)": wind_speed,
+                    "Wind_Speed(mph)": wind_speed_mph,
                     "Precipitation(in)": precipitation,
-                    "Hour": hour,
-                    "Weather_Condition": weather
+                    "Weather_Condition": weather,
+                    "Hour": hour
                 }
 
                 result = prediction_model.predict_accident_probability(st.session_state["rf_model"], conditions)
